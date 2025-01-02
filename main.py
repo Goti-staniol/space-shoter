@@ -92,16 +92,16 @@ class Player(sprite.Sprite):
     def update_bullets(self):
         for bullet in self.bullets:
             for enemy in enemies:
-                if enemy.ufo_rect.colliderect(bullet):
-                    enemies.remove(enemy)
+                if enemy.rect.colliderect(bullet):
+                    if enemy.is_destroyabled():
+                        enemies.remove(enemy)
+        
                     self.bullets.remove(bullet)
                     
             if bullet.y <= 0:
                 self.bullets.remove(bullet)
                 
             bullet.y -= 9
-            
-            print(self.bullets)
             
     def draw(self) -> None:
         for bullet in self.bullets:
@@ -116,46 +116,49 @@ class Player(sprite.Sprite):
 class Enemy(sprite.Sprite):
     def __init__(
         self,
-        ufo_size: Tuple[int, int],
-        asteroid_size: Tuple[int, int],
+        size: Tuple[int, int],
         speed: int,
-        ufo_img: str,
-        asteroid_img: str,
+        img,
         player: 'Player'
     ):
-        self.ufo_img = transform.scale(
-            surface=image.load(ufo_img),
-            size=ufo_size
+        super().__init__()
+        self.img = transform.scale(
+            surface=image.load(img), 
+            size=size
         )
-        self.ufo_rect = self.ufo_img.get_rect()
-        self.ufo_rect.x = randint(100, 400)  
-        self.ufo_rect.y = randint(80, 100)
-        
-        self.asteroid_img = transform.scale(
-            surface=image.load(asteroid_img),
-            size=asteroid_size
-        )
-        self.asteroid_rect = self.asteroid_img.get_rect()
-        self.asteroid_rect.x = randint(100, 400)  
-        self.asteroid_rect.y = randint(80, 100)
-        
-        self.player_rect = player.rect
-        
+        self.rect = self.img.get_rect()
+        self.rect.x = randint(100, 400)
+        self.rect.y = randint(80, 100)
+        self.player = player
         self.speed = speed
     
-    def update(self):
-        if self.asteroid_rect.colliderect(self.player_rect) or (
-            self.ufo_rect.colliderect(self.player_rect)
-        ):
-            print('ты проиграл')
-        
     def move(self):
-        self.asteroid_rect.y += self.speed
-        self.ufo_rect.y += self.speed
+        self.rect.y += self.speed
+    
+    def is_destroyabled(self) -> bool:
+        return True
+    
+    def update(self):
+        if self.rect.colliderect(self.player.rect):
+            print('lose')
     
     def draw(self):
-        window.blit(self.ufo_img, (self.ufo_rect.x, self.ufo_rect.y))
-        window.blit(self.asteroid_img, (self.asteroid_rect.x, self.asteroid_rect.y))
+        window.blit(self.img, (self.rect.x, self.rect.y))
+
+
+class Asteroid(Enemy):
+    def __init__(self, size, speed, img, player):
+        super().__init__(size, speed, img, player)
+        
+    def is_destroyabled(self):
+        return False    
+
+class Ufo(Enemy):
+    def __init__(self, size, speed, img, player):
+        super().__init__(size, speed, img, player)
+        
+    def is_destroyabled(self) -> bool:
+        return True
     
 timer = 0
 
@@ -168,8 +171,6 @@ player = Player(
     bullets_img='images/bullet.png'
 )
 
-
-
 game = True
 while game:
     keys = key.get_pressed()
@@ -180,29 +181,29 @@ while game:
     player.move(keys)
     
     timer += 1
-    if timer >= 30:
-        enemies.append(
-            Enemy(
-                ufo_size=(50, 50),
-                asteroid_size=(50, 50),
-                speed=3,
-                ufo_img='images/ufo.png',
-                asteroid_img='images/asteroid.png',
+    if timer >= 40:
+        if randint(0, 1):
+            foe = Ufo(
+                size=(50, 50),
+                speed=5,
+                img='images/ufo.png',
                 player=player
             )
-        )
+        else:
+            foe = Asteroid(
+                size=(50, 50),
+                speed=5,
+                img='images/asteroid.png',
+                player=player
+            )
+        enemies.append(foe)
         timer = 0
-    
+        
     for enemy in enemies:
-        if not enemy.asteroid_rect.colliderect(
-            enemy.ufo_rect
-        ):
-            enemy.update()
-            enemy.draw()
-            enemy.move()
-            
-            
-            
+        enemy.draw()
+        enemy.move()
+        enemy.update()   
+             
     for e in event.get():
         if e.type == QUIT:
             game = False
