@@ -2,20 +2,20 @@ from pygame import *
 import pygame
 
 from typing import Tuple, Optional
-from random import randint, choice
+from abc import abstractmethod
 
+from random import randint
 from time import time
 
 init()
-mixer.init()
-
-mixer.music.load('sounds/space.ogg')
-mixer.music.play(-1)
-
-shot_sound = mixer.Sound('sounds/fire.ogg')
 
 FPS = 30
 W, H = 500, 700
+
+mixer.init()
+mixer.music.load('sounds/space.ogg')
+mixer.music.play(-1)
+shot_sound = mixer.Sound('sounds/fire.ogg')
 
 window = display.set_mode((W, H))
 clock = pygame.time.Clock()
@@ -94,7 +94,7 @@ class Player(sprite.Sprite):
                 if enemy.rect.colliderect(bullet):
                     if enemy.is_destroyabled():
                         enemies.remove(enemy)
-        
+                        
                     self.bullets.remove(bullet)
                     
             if bullet.y <= 0:
@@ -134,12 +134,15 @@ class Enemy(sprite.Sprite):
     def move(self):
         self.rect.y += self.speed
     
+    @abstractmethod
     def is_destroyabled(self) -> bool:
-        return True
+        pass
     
     def update(self):
         if self.rect.colliderect(self.player.rect):
             print('lose')
+        if self.rect.y > H:
+            self.kill()
     
     def draw(self):
         window.blit(self.img, (self.rect.x, self.rect.y))
@@ -148,7 +151,21 @@ class Enemy(sprite.Sprite):
 class Asteroid(Enemy):
     def __init__(self, size, speed, img, player):
         super().__init__(size, speed, img, player)
+        self.angle = 0
+        self.original_img = self.img
+    
+    def update(self):
+        super().update()
+        self.rotate()
+
+    def rotate(self):
+        self.angle += 2.5
         
+        if self.angle >= 360:
+            self.angle = 0
+        
+        self.img = transform.rotate(self.original_img, self.angle)
+    
     def is_destroyabled(self):
         return False    
 
@@ -156,7 +173,7 @@ class Ufo(Enemy):
     def __init__(self, size, speed, img, player):
         super().__init__(size, speed, img, player)
         
-    def is_destroyabled(self) -> bool:
+    def is_destroyabled(self):
         return True
     
 timer = 0
