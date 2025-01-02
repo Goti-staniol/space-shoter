@@ -26,7 +26,6 @@ bg = transform.scale(
 )
 
 enemies = []
-asteroid_lst = []
 
 
 class Text(sprite.Sprite):
