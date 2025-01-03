@@ -58,6 +58,7 @@ class Attempts(Text):
     def update_lives(self, lives):
         super().update_text(f'Життя: {lives}')
     
+    
 class Player(sprite.Sprite):
     def __init__(
         self,
@@ -99,7 +100,6 @@ class Player(sprite.Sprite):
     def restart(self) -> None:
         self.rect.x, self.rect.y = self.position
         self.bullets.clear()
-        
     
     def update_bullets(self):
         for bullet in self.bullets:
