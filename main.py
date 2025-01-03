@@ -5,7 +5,6 @@ from typing import Tuple, Optional
 from abc import abstractmethod
 
 from random import randint
-from time import time
 
 init()
 
@@ -18,7 +17,7 @@ mixer.music.play(-1)
 shot_sound = mixer.Sound('sounds/fire.ogg')
 
 window = display.set_mode((W, H))
-clock = pygame.time.Clock()
+clock = time.Clock()
 
 bg = transform.scale(
     image.load('images/galaxy.jpg'),
@@ -26,6 +25,8 @@ bg = transform.scale(
 )
 
 enemies = []
+lives = 3
+timer = 0
 
 
 class Text(sprite.Sprite):
@@ -38,19 +39,25 @@ class Text(sprite.Sprite):
         font: Optional[str]
     ):
         super().__init__()
+        self.color = color
         self.position = position
         self.font = pygame.font.Font(font, size)
         self.text = self.font.render(text, True, color)
+    
+    def update_text(self, text: str):
+        self.text = self.font.render(text, True, self.color)
     
     def draw(self):
         window.blit(self.text, self.position)
 
 
-class D(Text):
+class Attempts(Text):
     def __init__(self, text, position, size, color, font=None):
         super().__init__(text, position, size, color, font)
-
-
+    
+    def update_lives(self, lives):
+        super().update_text(f'Життя: {lives}')
+    
 class Player(sprite.Sprite):
     def __init__(
         self,
@@ -65,6 +72,7 @@ class Player(sprite.Sprite):
             surface=image.load(player_img), 
             size=size
         )
+        self.position = position
         self.bullets = []
         self.rect = self.player_img.get_rect()
         self.rect.x, self.rect.y = position
@@ -87,6 +95,11 @@ class Player(sprite.Sprite):
             self.bullets.append(self.bullets_img.get_rect(
                 center=((self.rect.x + 20, self.rect.y + 35))
             ))
+    
+    def restart(self) -> None:
+        self.rect.x, self.rect.y = self.position
+        self.bullets.clear()
+        
     
     def update_bullets(self):
         for bullet in self.bullets:
@@ -117,8 +130,7 @@ class Enemy(sprite.Sprite):
         self,
         size: Tuple[int, int],
         speed: int,
-        img,
-        player: 'Player'
+        img: str
     ):
         super().__init__()
         self.img = transform.scale(
@@ -128,7 +140,6 @@ class Enemy(sprite.Sprite):
         self.rect = self.img.get_rect()
         self.rect.x = randint(100, 400)
         self.rect.y = randint(80, 100)
-        self.player = player
         self.speed = speed
     
     def move(self):
@@ -138,29 +149,21 @@ class Enemy(sprite.Sprite):
     def is_destroyabled(self) -> bool:
         pass
     
-    def update(self):
-        if self.rect.colliderect(self.player.rect):
-            print('lose')
-        if self.rect.y > H:
-            self.kill()
-    
     def draw(self):
         window.blit(self.img, (self.rect.x, self.rect.y))
 
 
 class Asteroid(Enemy):
-    def __init__(self, size, speed, img, player):
-        super().__init__(size, speed, img, player)
+    def __init__(self, size, speed, img):
+        super().__init__(size, speed, img)
         self.angle = 0
         self.original_img = self.img
     
     def update(self):
-        super().update()
         self.rotate()
 
     def rotate(self):
         self.angle += 2.5
-        
         if self.angle >= 360:
             self.angle = 0
         
@@ -169,14 +172,21 @@ class Asteroid(Enemy):
     def is_destroyabled(self):
         return False    
 
+
 class Ufo(Enemy):
-    def __init__(self, size, speed, img, player):
-        super().__init__(size, speed, img, player)
+    def __init__(self, size, speed, img):
+        super().__init__(size, speed, img)
         
     def is_destroyabled(self):
         return True
-    
-timer = 0
+
+attempts = Attempts(
+    text='Життя: 3',
+    position=(1, 10),
+    size=25,
+    color=(255, 255, 255),
+    font='fonts/Bebas_Neue_Cyrillic.ttf'
+)
 
 player = Player(
     position=(250, 500),
@@ -196,29 +206,37 @@ while game:
     player.draw()
     player.move(keys)
     
+    attempts.draw()
+    attempts.update()
+    
     timer += 1
     if timer >= 40:
-        if randint(0, 1):
-            foe = Ufo(
-                size=(50, 50),
-                speed=5,
-                img='images/ufo.png',
-                player=player
-            )
-        else:
-            foe = Asteroid(
-                size=(50, 50),
-                speed=5,
-                img='images/asteroid.png',
-                player=player
-            )
+        foe_class = Ufo if randint(0, 1) else Asteroid
+        foe = foe_class(
+            size=(50, 50),
+            speed=5,
+            img=f'images/{foe_class.__name__.lower()}.png'
+        )
+        
         enemies.append(foe)
         timer = 0
+    
+    if lives == 0:
+        lives = 3
+        attempts.update_lives(lives)
         
+        enemies.clear()
+        player.restart()
+    
     for enemy in enemies:
         enemy.draw()
         enemy.move()
-        enemy.update()   
+        enemy.update() 
+        
+        if enemy.rect.colliderect(player.rect):
+            lives -= 1
+            attempts.update_lives(lives)
+            enemies.remove(enemy)
              
     for e in event.get():
         if e.type == QUIT:
